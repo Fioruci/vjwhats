@@ -38,6 +38,10 @@ def main():
     wpp.find_by_username("Contact 2")
     wpp.send_file(Path("path/to/file"), which=1)
 
+    # Sending a file to a new Conversation
+    wpp.start_conversation("+55999977885")
+    wpp.send_file(Path("path/to/file"), which=1)
+
 if __name__ == "__main__":
     main()
 ```
