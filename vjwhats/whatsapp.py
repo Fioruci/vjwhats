@@ -1,3 +1,5 @@
+# vjwhats/whatsapp.py
+
 import os
 import logging
 from time import sleep
@@ -18,7 +20,6 @@ class WhatsApp:
 
     Attributes:
         BASE_URL (str): The base URL for WhatsApp Web.
-        suffix_link (str): The URL template for sending a message.
         browser: The Selenium WebDriver instance.
         wait: WebDriverWait instance with a timeout.
         wait_img: WebDriverWait instance with a shorter timeout for image operations.
@@ -34,10 +35,10 @@ class WhatsApp:
             time_out (int): Timeout for WebDriverWait, in seconds.
         """
         self.BASE_URL = "https://web.whatsapp.com/"
-        self.suffix_link = "https://web.whatsapp.com/send?phone={mobile}&text&type=phone_number&app_absent=1"
         self.browser = browser
         self.wait = WebDriverWait(self.browser, time_out)
         self.wait_img = WebDriverWait(self.browser, 5)
+        self.wait_contact = WebDriverWait(self.browser, 30)
         self.cli()
         self.login()
         self.mobile = ""
@@ -87,7 +88,7 @@ class WhatsApp:
             str: Status code indicating the result of the operation.
         """
         try:
-            inp_xpath = "//div[@aria-label='Digite uma mensagem']"
+            inp_xpath = "//div[@aria-placeholder='Digite uma mensagem']" # UPDT 08-08
             nr_not_found_xpath = '//*[@id="app"]/div/span[2]/div/span/div/div/div/div/div/div[2]/div/div'
             ctrl_element = self.wait.until(
                 lambda ctrl_self: ctrl_self.find_elements(By.XPATH, nr_not_found_xpath)
@@ -263,7 +264,7 @@ class WhatsApp:
 
         The search box is used to search for contacts or messages.
         """
-        search_box_xpath = '//div[@contenteditable="true" and @role="textbox"]'
+        search_box_xpath = '(//div[@contenteditable="true" and @role="textbox"])[1]' # UPDT 08-08
         search_box = self.wait.until(
             EC.presence_of_element_located((By.XPATH, search_box_xpath))
         )
@@ -282,7 +283,7 @@ class WhatsApp:
             bool: True if the contact was found, False otherwise.
         """
         search_box = self.wait.until(
-            EC.presence_of_element_located((By.XPATH, "//div[@aria-label='Caixa de texto de pesquisa']"))
+            EC.presence_of_element_located((By.XPATH, "(//*[@role='textbox'])[1]")) ## UPDT 08-08
         )
         self.clear_search_box()
         search_box.send_keys(username)
@@ -296,4 +297,28 @@ class WhatsApp:
                 return True
         except NoSuchElementException:
             LOGGER.exception(f'It was not possible to fetch chat "{username}"')
+            return False
+
+    def start_conversation(self, mobile: str):
+        """
+        Tries to open a new conversation with the given number. Runs out after 30 seconds if not found.
+
+        Args:
+            mobile (str): The number to search for.
+        
+        Returns:
+            bool: True if the contact was found, False otherwise.
+        """
+
+        self.browser.get(f"https://web.whatsapp.com/send?phone={mobile}&text&type=phone_number&app_absent=1")
+
+        try:
+            opened_chat = self.wait_contact.until(
+                EC.presence_of_element_located((By.XPATH, "//div[@title='Dados de perfil']"))
+            )
+            if opened_chat:
+                LOGGER.info(f'Successfully fetched chat "{mobile}"')
+                return True
+        except NoSuchElementException:
+            LOGGER.exception(f'It was not possible to fetch chat "{mobile}"')
             return False
